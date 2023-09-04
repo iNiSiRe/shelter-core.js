@@ -7,11 +7,22 @@
   ],
   "exports": {
     ".": "./build/shelter.js",
+    "./server": "./build/server.js",
+    "./shelter": "./build/shelter.js",
     "./registry": "./build/registry.js",
     "./bus/events": "./build/bus/events.js",
-    "./bus/queries": "./build/bus/queries.js"
+    "./bus/queries": "./build/bus/queries.js",
+    "./package.json": "./package.json"
   },
-  "types": "build/shelter.d.ts",
+  "typesVersions": {
+    "*": {
+      "server": ["build/server.d.ts"],
+      "shelter": ["build/shelter.d.ts"],
+      "registry": ["build/registry.d.ts"],
+      "bus/events": ["build/bus/events.d.ts"],
+      "bus/queries": ["build/bus/queries.d.ts"]
+    }
+  },
   "scripts": {
     "build": "rm -rf ./build && npx tsc",
     "prepare": "npm run build"
