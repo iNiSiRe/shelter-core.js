@@ -1,5 +1,9 @@
 import {Query} from "netbus";
 
+export enum ShelterQuery {
+    DeviceCall = 'Device.Call'
+}
+
 export class DeviceCall extends Query
 {
     constructor(
@@ -7,6 +11,6 @@ export class DeviceCall extends Query
         public readonly method: string,
         public readonly params: any
     ) {
-        super('Device.Call', {device: deviceId, method: method, parameters: params});
+        super(ShelterQuery.DeviceCall, {device: deviceId, method: method, parameters: params});
     }
 }

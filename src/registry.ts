@@ -1,5 +1,6 @@
 import {EventEmitter} from "events";
 import {Bus, Event, RemoteEvent} from "netbus";
+import {DiscoverRequest, ShelterEvent} from "./bus/events";
 
 export class Registry
 {
@@ -13,9 +14,8 @@ export class Registry
         this.devices = new Map();
         this.events = new EventEmitter();
 
-        bus.subscribe('Discover.Response', this.handleDiscoverResponse.bind(this));
-        bus.subscribe('Device.Update', this.handleDeviceUpdate.bind(this));
-        bus.dispatch(new Event('Discover.Request'));
+        bus.subscribe(ShelterEvent.DiscoverResponse, this.handleDiscoverResponse.bind(this));
+        bus.subscribe(ShelterEvent.DeviceUpdate, this.handleDeviceUpdate.bind(this));
     }
 
     public handleDeviceUpdate(event: Event)
@@ -34,6 +34,7 @@ export class Registry
             }
 
             device.update(properties);
+
             this.events.emit('update', device);
         }
     }
@@ -75,6 +76,14 @@ export class Registry
     public onUpdate(handler: (arg1: RemoteDevice) => void): void
     {
         this.events.on('update', handler);
+    }
+
+    private wait = (ms: number) => { return new Promise(resolve => setInterval(resolve, ms)); };
+
+    public async start()
+    {
+        this.bus.dispatch(new DiscoverRequest());
+        await this.wait(1000);
     }
 }
 
