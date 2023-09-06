@@ -1,30 +1,48 @@
-import {Bus, Connector, Query, Result} from "netbus";
+import {Bus, Result} from "netbus";
 import {Registry} from "./registry";
 import {DeviceController, DeviceEventsController} from "./controller";
 import http, {IncomingMessage, ServerResponse} from "http";
 import {URL} from "url";
 import {DeviceCall} from "./bus/queries";
 
+export type RequestHandler = (arg0: RegExpMatchArray, arg1: IncomingMessage, arg2: URLSearchParams, arg3: ServerResponse) => void;
+
 export class Shelter
 {
+    public routes: Map<RegExp, RequestHandler> = new Map();
+
     constructor(
         private readonly bus: Bus,
         private readonly httpServerPort: number = 8080
     ) {
     }
 
+    private async waitBody(r: IncomingMessage): Promise<string>
+    {
+        return new Promise((resolve: ((arg: string) => void)) => {
+            let body: string = '';
+
+            r.on('data', (chunk) => {
+                body += chunk;
+            });
+
+            r.on('end', () => {
+                resolve(body);
+            });
+        })
+    }
+
     public async start(): Promise<void>
     {
         const bus = this.bus;
+
         const registry = new Registry(bus);
+        await registry.start();
+
         const devices = new DeviceController(registry);
         const events = new DeviceEventsController(registry);
 
-        type RequestHandler = (arg0: RegExpMatchArray, arg1: IncomingMessage, arg2: URLSearchParams, arg3: ServerResponse) => void;
-
-        const routes: Map<RegExp, RequestHandler> = new Map();
-
-        routes.set(
+        this.routes.set(
             new RegExp('^GET /api/v1/devices$'),
             (matches, req, query, res) => {
                 res.writeHead(200, {
@@ -34,14 +52,14 @@ export class Shelter
             }
         );
 
-        routes.set(
+        this.routes.set(
             new RegExp('^GET /sse/v1/devices$'),
             (matches, req, query,res) => {
                 events.subscribe(res);
             }
         );
 
-        routes.set(
+        this.routes.set(
             /^OPTIONS .+$/,
             (matches, req, query, res) => {
                 res.writeHead(201);
@@ -49,12 +67,19 @@ export class Shelter
             }
         );
 
-        routes.set(
+        this.routes.set(
             /^(POST|GET) \/api\/v1\/devices\/(.+)\/(.+)$/,
             async (matches, req, query, res) => {
                 const deviceId: string = matches[2];
                 const method: string = matches[3];
-                const params = query.get('params') ?? {};
+                let params = {};
+
+                if (req.method === "POST" && req.headers["content-type"] === 'application/json') {
+                    const body = await this.waitBody(req);
+                    params = JSON.parse(body);
+                } else {
+                    params = Object.fromEntries(query.entries());
+                }
 
                 let result = new Result(-1, {error: 'Device not found'});
 
@@ -81,7 +106,7 @@ export class Shelter
             const route = `${req.method} ${url.pathname}`;
             let handled: boolean = false;
 
-            for (const [pattern, handler] of routes) {
+            for (const [pattern, handler] of this.routes) {
                 const matches = pattern.exec(route);
                 if (matches && matches.length > 0) {
                     handler(matches, req, url.searchParams, res);

@@ -4,7 +4,9 @@ export enum ShelterQuery {
     DeviceCall = 'Device.Call'
 }
 
-export class DeviceCall extends Query
+export type DeviceCallData = {device: string, method: string, parameters: any}
+
+export class DeviceCall extends Query<DeviceCallData>
 {
     constructor(
         public readonly deviceId: string,

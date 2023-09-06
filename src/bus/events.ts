@@ -6,7 +6,10 @@ export enum ShelterEvent {
     DiscoverResponse = 'Discover.Response',
 }
 
-export class DeviceUpdate extends Event
+export type DeviceUpdateData = {device: string, update: object, properties: object};
+export type DiscoverResponseData = {device: string, model: string, properties: object};
+
+export class DeviceUpdate extends Event<DeviceUpdateData>
 {
     constructor(
         deviceId: string,
@@ -17,16 +20,24 @@ export class DeviceUpdate extends Event
     }
 }
 
-export class DiscoverRequest extends Event
+export class DiscoverRequest extends Event<null>
 {
     constructor() {
-        super(ShelterEvent.DiscoverRequest);
+        super(ShelterEvent.DiscoverRequest, null);
     }
 }
 
-export class DiscoverResponse extends Event
+export class DiscoverResponse extends Event<DiscoverResponseData>
 {
-    constructor() {
-        super(ShelterEvent.DiscoverResponse);
+    constructor(
+        deviceId: string,
+        model: string,
+        properties: object
+    ) {
+        super(ShelterEvent.DiscoverResponse, {
+            device: deviceId,
+            model: model,
+            properties: properties
+        });
     }
 }

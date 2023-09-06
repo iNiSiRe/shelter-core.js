@@ -16,11 +16,21 @@
   },
   "typesVersions": {
     "*": {
-      "server": ["build/server.d.ts"],
-      "shelter": ["build/shelter.d.ts"],
-      "registry": ["build/registry.d.ts"],
-      "bus/events": ["build/bus/events.d.ts"],
-      "bus/queries": ["build/bus/queries.d.ts"]
+      "server": [
+        "build/server.d.ts"
+      ],
+      "shelter": [
+        "build/shelter.d.ts"
+      ],
+      "registry": [
+        "build/registry.d.ts"
+      ],
+      "bus/events": [
+        "build/bus/events.d.ts"
+      ],
+      "bus/queries": [
+        "build/bus/queries.d.ts"
+      ]
     }
   },
   "scripts": {

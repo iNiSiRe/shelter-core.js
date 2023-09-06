@@ -1,7 +1,8 @@
 import {RemoteDevice, Registry} from "./registry";
 import {ServerResponse} from "http";
 
-export class DeviceController {
+export class DeviceController
+{
     constructor(
         private readonly registry: Registry
     ) {
@@ -12,7 +13,7 @@ export class DeviceController {
         const devices = [];
 
         for (let device of this.registry.findAll()) {
-            devices.push({id: device.id, name: null, properties: Object.fromEntries(device.properties.entries()), metadata: null});
+            devices.push({id: device.id, name: null, model: device.model, properties: Object.fromEntries(device.properties.entries()), metadata: null});
         }
 
         return devices;

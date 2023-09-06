@@ -1,6 +1,6 @@
 import {EventEmitter} from "events";
 import {Bus, Event, RemoteEvent} from "netbus";
-import {DiscoverRequest, ShelterEvent} from "./bus/events";
+import {DeviceUpdateData, DiscoverRequest, DiscoverResponseData, ShelterEvent} from "./bus/events";
 
 export class Registry
 {
@@ -18,18 +18,17 @@ export class Registry
         bus.subscribe(ShelterEvent.DeviceUpdate, this.handleDeviceUpdate.bind(this));
     }
 
-    public handleDeviceUpdate(event: Event)
+    public handleDeviceUpdate(event: Event<DeviceUpdateData>)
     {
-        const update: {device: string, properties: {[key: string]: any}} = event.data;
-        const id = update.device;
+        const id = event.data.device;
         const device = this.find(id);
 
-        console.log(`Device #${id} update with properties: ${JSON.stringify(update.properties)}`);
+        console.log(`Device #${id} update with properties: ${JSON.stringify(event.data.properties)}`);
 
         if (device) {
             const properties = new Map<string, any>();
 
-            for (const [name, value] of Object.entries(update.properties)) {
+            for (const [name, value] of Object.entries(event.data.properties)) {
                 properties.set(name, value);
             }
 
@@ -39,22 +38,21 @@ export class Registry
         }
     }
 
-    public handleDiscoverResponse(event: RemoteEvent)
+    public handleDiscoverResponse(event: RemoteEvent<DiscoverResponseData>)
     {
-        const discover: {device: string, model: string, properties: object} = event.data;
-        const id = discover.device;
+        const id = event.data.device;
 
-        console.log(`Device ${event.source}#${id} (${discover.model}) discovered with properties: ${JSON.stringify(discover.properties)}`);
+        console.log(`Device ${event.source}#${id} (${event.data.model}) discovered with properties: ${JSON.stringify(event.data.properties)}`);
 
         const device = this.find(id);
 
         const properties = new Map<string, any>();
-        for (const [name, value] of Object.entries(discover.properties)) {
+        for (const [name, value] of Object.entries(event.data.properties)) {
             properties.set(name, value);
         }
 
         if (device === null) {
-            this.devices.set(id, new RemoteDevice(event.source, id, discover.model, properties));
+            this.devices.set(id, new RemoteDevice(event.source, id, event.data.model, properties));
         } else {
             device.update(properties);
             this.events.emit('update', device);
