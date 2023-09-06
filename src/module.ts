@@ -18,7 +18,7 @@ export interface ShelterDevice<Schema extends Object>
 
 export class ShelterModule
 {
-    private startedAt: number;
+    private startedAt: number = 0;
 
     private readonly devices: ShelterDevice<any>[] = [];
 
