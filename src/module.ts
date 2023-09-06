@@ -20,7 +20,7 @@ export class ShelterModule
 {
     private startedAt: number = 0;
 
-    private readonly devices: ShelterDevice<any>[] = [];
+    private readonly _devices: ShelterDevice<any>[] = [];
 
     constructor(
         private readonly bus: Bus
@@ -37,7 +37,7 @@ export class ShelterModule
         });
 
         this.bus.on(ShelterQuery.DeviceCall, async (query: Query<DeviceCallData>): Promise<Result> => {
-            for (const device of this.devices) {
+            for (const device of this._devices) {
                 if (device.id === query.data.device) {
                     const result = await device.call(query.data.method, query.data.parameters);
                     return new Result(result.code, result.data);
@@ -54,13 +54,18 @@ export class ShelterModule
             this.bus.dispatch(new DeviceUpdate(device.id, Object.fromEntries(changes.entries()), device.properties.all()));
         });
 
-        this.devices.push(device);
+        this._devices.push(device);
 
         this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties.all()));
     }
 
+    get devices(): ShelterDevice<any>[]
+    {
+        return this._devices;
+    }
+
     private handleDiscoverRequest(): void {
-        for (const device of this.devices) {
+        for (const device of this._devices) {
             this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties.all()));
         }
     }
