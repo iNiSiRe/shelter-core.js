@@ -9,6 +9,7 @@
     ".": "./build/shelter.js",
     "./server": "./build/server.js",
     "./shelter": "./build/shelter.js",
+    "./module": "./build/module.js",
     "./registry": "./build/registry.js",
     "./bus/events": "./build/bus/events.js",
     "./bus/queries": "./build/bus/queries.js",
@@ -18,6 +19,9 @@
     "*": {
       "server": [
         "build/server.d.ts"
+      ],
+      "module": [
+        "build/module.d.ts"
       ],
       "shelter": [
         "build/shelter.d.ts"
