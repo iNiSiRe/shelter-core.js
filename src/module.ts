@@ -18,15 +18,13 @@ export interface ShelterDevice<Schema extends Object>
 
 export class ShelterModule
 {
-    private readonly startedAt: number;
+    private startedAt: number;
 
     private readonly devices: ShelterDevice<any>[] = [];
 
     constructor(
         private readonly bus: Bus
     ) {
-        this.startedAt = Date.now();
-
         this.bus.subscribe(ShelterEvent.DiscoverRequest, this.handleDiscoverRequest.bind(this));
 
         this.bus.on('Module.Status', async (): Promise<Result> => {
@@ -65,6 +63,11 @@ export class ShelterModule
         for (const device of this.devices) {
             this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties.all()));
         }
+    }
+
+    public async start(): Promise<void>
+    {
+        this.startedAt = Date.now();
     }
 }
 
