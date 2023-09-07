@@ -5,13 +5,13 @@ import {DeviceCallData, ShelterQuery} from "./bus/queries";
 
 export type CallResult = {code: number, data: any};
 
-export interface ShelterDevice<Schema extends Object>
+export interface ShelterDevice
 {
     get id(): string;
 
     get model(): string;
 
-    get properties(): Properties<Schema>;
+    get state(): object;
 
     call(method: string, params: object): Promise<CallResult>;
 }
@@ -20,7 +20,7 @@ export class ShelterModule
 {
     private startedAt: number = 0;
 
-    private readonly _devices: ShelterDevice<any>[] = [];
+    private readonly _devices: ShelterDevice[] = [];
 
     constructor(
         private readonly bus: Bus
@@ -48,25 +48,25 @@ export class ShelterModule
         });
     }
 
-    public registerDevice(device: ShelterDevice<any>)
+    public registerDevice(device: ShelterDevice)
     {
         device.properties.onUpdate((changes: ChangeSet) => {
-            this.bus.dispatch(new DeviceUpdate(device.id, Object.fromEntries(changes.entries()), device.properties.all()));
+            this.bus.dispatch(new DeviceUpdate(device.id, Object.fromEntries(changes.entries()), device.properties));
         });
 
         this._devices.push(device);
 
-        this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties.all()));
+        this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties));
     }
 
-    get devices(): ShelterDevice<any>[]
+    get devices(): ShelterDevice[]
     {
         return this._devices;
     }
 
     private handleDiscoverRequest(): void {
         for (const device of this._devices) {
-            this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties.all()));
+            this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties));
         }
     }
 
@@ -80,8 +80,10 @@ export class ChangeSet extends Map<string,any>
 {
 }
 
-export class Properties<Scheme extends object> extends EventEmitter
+export class Properties<Scheme extends Object> extends Object
 {
+    private readonly events = new EventEmitter();
+
     private readonly state: Map<string, any> = new Map();
 
     public update(changes: Scheme): void
@@ -98,7 +100,7 @@ export class Properties<Scheme extends object> extends EventEmitter
         }
 
         if (changed.size > 0) {
-            this.emit('update', changed);
+            this.events.emit('update', changed);
         }
     }
 
@@ -114,6 +116,41 @@ export class Properties<Scheme extends object> extends EventEmitter
 
     public onUpdate(handler: (arg: ChangeSet) => void)
     {
-        this.on('update', handler);
+        this.events.on('update', handler);
+    }
+}
+
+export class DeviceState<Scheme extends object>
+{
+    private readonly events = new EventEmitter();
+
+    private readonly comittedState: Map<string, any> = new Map();
+
+    constructor(
+        public properties: Scheme
+    ) {
+    }
+
+    public commit()
+    {
+        const changed = new ChangeSet();
+
+        for (const [name, value] of Object.entries(this.properties)) {
+            if (this.comittedState.has(name) && this.comittedState.get(name) === value) {
+                continue;
+            }
+
+            this.comittedState.set(name, value);
+            changed.set(name, value);
+        }
+
+        if (changed.size > 0) {
+            this.events.emit('update', changed);
+        }
+    }
+
+    public onUpdate(handler: (arg: ChangeSet) => void)
+    {
+        this.events.on('update', handler);
     }
 }
