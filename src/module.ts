@@ -5,13 +5,13 @@ import {DeviceCallData, ShelterQuery} from "./bus/queries";
 
 export type CallResult = {code: number, data: any};
 
-export interface ShelterDevice
+export interface ShelterDevice<T extends object>
 {
     get id(): string;
 
     get model(): string;
 
-    get state(): object;
+    get state(): DeviceState<T>;
 
     call(method: string, params: object): Promise<CallResult>;
 }
@@ -20,7 +20,7 @@ export class ShelterModule
 {
     private startedAt: number = 0;
 
-    private readonly _devices: ShelterDevice[] = [];
+    private readonly _devices: ShelterDevice<any>[] = [];
 
     constructor(
         private readonly bus: Bus
@@ -48,25 +48,25 @@ export class ShelterModule
         });
     }
 
-    public registerDevice(device: ShelterDevice)
+    public registerDevice(device: ShelterDevice<any>)
     {
-        device.properties.onUpdate((changes: ChangeSet) => {
-            this.bus.dispatch(new DeviceUpdate(device.id, Object.fromEntries(changes.entries()), device.properties));
+        device.state.onUpdate((changes: ChangeSet) => {
+            this.bus.dispatch(new DeviceUpdate(device.id, Object.fromEntries(changes.entries()), device.state.properties));
         });
 
         this._devices.push(device);
 
-        this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties));
+        this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.state.properties));
     }
 
-    get devices(): ShelterDevice[]
+    get devices(): ShelterDevice<any>[]
     {
         return this._devices;
     }
 
     private handleDiscoverRequest(): void {
         for (const device of this._devices) {
-            this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties));
+            this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.state.properties));
         }
     }
 
