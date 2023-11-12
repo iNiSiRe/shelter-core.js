@@ -5,22 +5,55 @@ import {DeviceCallData, ShelterQuery} from "./bus/queries";
 
 export type CallResult = {code: number, data: any};
 
-export interface ShelterDevice<T extends object>
+export class ChangeSet extends Map<string,any>
 {
-    get id(): string;
+}
 
-    get model(): string;
+export abstract class ShelterDevice
+{
+    private readonly events: EventEmitter = new EventEmitter();
 
-    get state(): DeviceState<T>;
+    private readonly committedState: Map<string, any> = new Map();
 
-    call(method: string, params: object): Promise<CallResult>;
+    constructor(
+        public readonly id: string,
+        public readonly model: string,
+    ) {
+    }
+
+    public onUpdate(handler: (arg1: ChangeSet, arg2: ShelterDevice) => void)
+    {
+        this.events.on('update', handler);
+    }
+
+    public commit()
+    {
+        const changes = new ChangeSet();
+
+        for (const [name, value] of Object.entries(this.properties)) {
+            if (this.committedState.has(name) && this.committedState.get(name) === value) {
+                continue;
+            }
+
+            this.committedState.set(name, value);
+            changes.set(name, value);
+        }
+
+        if (changes.size > 0) {
+            this.events.emit('update', changes, this);
+        }
+    }
+
+    abstract get properties(): object;
+
+    abstract call(method: string, params: object): Promise<CallResult>;
 }
 
 export class ShelterModule
 {
     private startedAt: number = 0;
 
-    private readonly _devices: ShelterDevice<any>[] = [];
+    private readonly _devices: ShelterDevice[] = [];
 
     constructor(
         private readonly bus: Bus
@@ -48,109 +81,30 @@ export class ShelterModule
         });
     }
 
-    public registerDevice(device: ShelterDevice<any>)
+    public registerDevice(device: ShelterDevice)
     {
-        device.state.onUpdate((changes: ChangeSet) => {
-            this.bus.dispatch(new DeviceUpdate(device.id, Object.fromEntries(changes.entries()), device.state.properties));
+        device.onUpdate((changes: ChangeSet, device: ShelterDevice) => {
+            this.bus.dispatch(new DeviceUpdate(device.id, Object.fromEntries(changes.entries()), device.properties));
         });
 
         this._devices.push(device);
 
-        this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.state.properties));
+        this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties));
     }
 
-    get devices(): ShelterDevice<any>[]
+    get devices(): ShelterDevice[]
     {
         return this._devices;
     }
 
     private handleDiscoverRequest(): void {
         for (const device of this._devices) {
-            this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.state.properties));
+            this.bus.dispatch(new DiscoverResponse(device.id, device.model, device.properties));
         }
     }
 
     public async start(): Promise<void>
     {
         this.startedAt = Date.now();
-    }
-}
-
-export class ChangeSet extends Map<string,any>
-{
-}
-
-export class Properties<Scheme extends Object> extends Object
-{
-    private readonly events = new EventEmitter();
-
-    private readonly state: Map<string, any> = new Map();
-
-    public update(changes: Scheme): void
-    {
-        const changed = new ChangeSet();
-
-        for (const [name, value] of Object.entries(changes)) {
-            if (this.state.has(name) && this.state.get(name) === value) {
-                continue;
-            }
-
-            this.state.set(name, value);
-            changed.set(name, value);
-        }
-
-        if (changed.size > 0) {
-            this.events.emit('update', changed);
-        }
-    }
-
-    public all(): Scheme {
-        const object: { [key: string]: any } = {};
-
-        for (const [name, value] of this.state) {
-            object[name] = value;
-        }
-
-        return object as Scheme;
-    }
-
-    public onUpdate(handler: (arg: ChangeSet) => void)
-    {
-        this.events.on('update', handler);
-    }
-}
-
-export class DeviceState<Scheme extends object>
-{
-    private readonly events = new EventEmitter();
-
-    private readonly comittedState: Map<string, any> = new Map();
-
-    constructor(
-        public properties: Scheme
-    ) {
-    }
-
-    public commit()
-    {
-        const changed = new ChangeSet();
-
-        for (const [name, value] of Object.entries(this.properties)) {
-            if (this.comittedState.has(name) && this.comittedState.get(name) === value) {
-                continue;
-            }
-
-            this.comittedState.set(name, value);
-            changed.set(name, value);
-        }
-
-        if (changed.size > 0) {
-            this.events.emit('update', changed);
-        }
-    }
-
-    public onUpdate(handler: (arg: ChangeSet) => void)
-    {
-        this.events.on('update', handler);
     }
 }
