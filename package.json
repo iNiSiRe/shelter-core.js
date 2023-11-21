@@ -42,7 +42,8 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "netbus": "https://github.com/iNiSiRe/netbus.js"
+    "netbus": "https://github.com/iNiSiRe/netbus.js",
+    "ws": "^8.14.2"
   },
   "devDependencies": {
     "@types/node": "^20.4.5",
