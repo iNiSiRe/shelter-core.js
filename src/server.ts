@@ -1,5 +1,7 @@
 import {Connector} from "netbus";
-import {Shelter} from "./shelter";
+import {HttpService} from "./http";
+import {Registry} from "./registry";
+import {WebSocketService} from "./ws";
 
 const busHost: string = process.env.BUS ?? '';
 const busId: string = process.env.BUS_ID ?? '';
@@ -13,6 +15,13 @@ if (busId === '' || busHost === '') {
 
 (async () => {
     const bus = await Connector.connect(busId, busHost);
-    const server = new Shelter(bus, httpPort, wsPort);
+
+    const registry = new Registry(bus);
+    await registry.start();
+
+    const server = new HttpService(bus, registry, httpPort);
     await server.start();
+
+    const ws = new WebSocketService(bus, registry, wsPort)
+    ws.start();
 })();

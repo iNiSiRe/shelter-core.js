@@ -4,18 +4,17 @@ import {DeviceController, DeviceEventsController} from "./controller";
 import http, {IncomingMessage, ServerResponse} from "http";
 import {URL} from "url";
 import {DeviceCall} from "./bus/queries";
-import WebSocket, { WebSocketServer } from 'ws';
 
 export type RequestHandler = (arg0: RegExpMatchArray, arg1: IncomingMessage, arg2: URLSearchParams, arg3: ServerResponse) => void;
 
-export class Shelter
+export class HttpService
 {
     public routes: Map<RegExp, RequestHandler> = new Map();
 
     constructor(
         private readonly bus: Bus,
+        private readonly registry: Registry,
         private readonly httpServerPort: number = 8080,
-        private readonly wsServerPort: number = 8888
     ) {
     }
 
@@ -36,13 +35,8 @@ export class Shelter
 
     public async start(): Promise<void>
     {
-        const bus = this.bus;
-
-        const registry = new Registry(bus);
-        await registry.start();
-
-        const devices = new DeviceController(registry);
-        const events = new DeviceEventsController(registry);
+        const devices = new DeviceController(this.registry);
+        const events = new DeviceEventsController(this.registry);
 
         this.routes.set(
             new RegExp('^GET /api/v1/devices$'),
@@ -85,9 +79,9 @@ export class Shelter
 
                 let result = new Result(-1, {error: 'Device not found'});
 
-                for (const device of registry.findAll()) {
+                for (const device of this.registry.findAll()) {
                     if (device.id === deviceId) {
-                        result = await bus.execute(device.busId, new DeviceCall(deviceId, method, params));
+                        result = await this.bus.execute(device.busId, new DeviceCall(deviceId, method, params));
                     }
                 }
 
@@ -124,46 +118,8 @@ export class Shelter
             }
         });
 
-        server.listen(this.httpServerPort, '0.0.0.0');
-
-        const wsServer = new WebSocketServer({ port: this.wsServerPort });
-
-        wsServer.on('connection', function connection(ws: WebSocket) {
-            ws.on('message', async function message(data) {
-                const command = JSON.parse(data.toString());
-
-                const id: number = command.id;
-                const deviceId: string|null = command.device ?? null;
-                const method: string|null = command.method ?? null;
-                const params: object = command.params ?? {};
-
-                if (!deviceId || !method) {
-                    ws.send(JSON.stringify({result: {code: -1, data: {error: 'Bad request'}}}));
-                    return;
-                }
-
-                console.log('ws: device call', deviceId, method, params);
-
-                let device = null;
-                for (const it of registry.findAll()) {
-                    if (it.id === deviceId) {
-                        device = it;
-                    }
-                }
-
-                let result = null;
-
-                if (!device) {
-                    ws.send(JSON.stringify({result: {code: -1, data: {error: 'Device not found'}}}));
-                    return
-                }
-
-                result = await bus.execute(device.busId, new DeviceCall(deviceId, method, params));
-
-                console.log('ws: device call result', result);
-
-                ws.send(JSON.stringify({id: id, result: result}));
-            });
+        server.listen(this.httpServerPort, '0.0.0.0', () => {
+            console.log('Http server is running');
         });
     }
 }
